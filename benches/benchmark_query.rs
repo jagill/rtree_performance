@@ -2,7 +2,7 @@ mod utils;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use rtree_performance::{Flatbush, PackedRTree, Rectangle, SegRTree};
+use rtree_performance::{PackedRTreeAutoSimd, PackedRTreeNative, RTree, Rectangle};
 use utils::{get_positions_list, get_random_points, make_rectangles_list};
 
 pub fn query_benchmark(c: &mut Criterion) {
@@ -15,59 +15,33 @@ pub fn query_benchmark(c: &mut Criterion) {
     for (poly_idx, rectangles) in rectangles_list.iter().enumerate() {
         println!("Polygon {} has {} segments.", poly_idx, rectangles.len());
         for &degree in [8, 16].iter() {
-            let seg_rtree = SegRTree::new(degree, rectangles);
-            let query_rects: Vec<_> = get_random_points(seg_rtree.envelope(), 1000, 342)
+            let rtree_native = PackedRTreeNative::new(degree, rectangles);
+            let rtree_auto_simd = PackedRTreeAutoSimd::new(degree, rectangles);
+
+            let query_rects: Vec<_> = get_random_points(rtree_native.envelope(), 1000, 342)
                 .into_iter()
                 .map(|p| Rectangle::new(p, p))
                 .collect();
 
             group.bench_function(
-                BenchmarkId::new(format!("seg_rtree_query.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_native_query.{}", poly_idx), degree),
                 |b| {
                     // for coords in &positions_list {
                     b.iter(|| {
-                        for &rect in &query_rects {
-                            black_box(seg_rtree.query_rect(rect));
+                        for rect in &query_rects {
+                            black_box(rtree_native.query_rect(rect));
                         }
                     })
                 },
             );
 
             group.bench_function(
-                BenchmarkId::new(format!("seg_rtree_query_2.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_auto_simd_query.{}", poly_idx), degree),
                 |b| {
                     // for coords in &positions_list {
                     b.iter(|| {
-                        for &rect in &query_rects {
-                            black_box(seg_rtree.query_rect_2(rect));
-                        }
-                    })
-                },
-            );
-
-            let packed_rtree = PackedRTree::new(degree, rectangles);
-
-            group.bench_function(
-                BenchmarkId::new(format!("packed_rtree_query.{}", poly_idx), degree),
-                |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for &rect in &query_rects {
-                            black_box(packed_rtree.query_rect(rect));
-                        }
-                    })
-                },
-            );
-
-            let flatbush = Flatbush::new(degree, rectangles);
-
-            group.bench_function(
-                BenchmarkId::new(format!("flatbush_query.{}", poly_idx), degree),
-                |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for &rect in &query_rects {
-                            black_box(flatbush.query_rect(rect));
+                        for rect in &query_rects {
+                            black_box(rtree_auto_simd.query_rect(rect));
                         }
                     })
                 },

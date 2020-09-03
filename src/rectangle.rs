@@ -42,6 +42,12 @@ impl HasEnvelope for Rectangle {
     }
 }
 
+impl HasEnvelope for &Rectangle {
+    fn envelope(&self) -> Rectangle {
+        **self
+    }
+}
+
 impl Rectangle {
     pub fn new(p1: Coordinate, p2: Coordinate) -> Self {
         Rectangle {
