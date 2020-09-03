@@ -1,16 +1,16 @@
 mod coordinate;
-mod flatbush;
 pub mod from_wkt;
-mod hilbert;
-mod packed_rtree;
+mod packed_rtree_auto_simd;
+mod packed_rtree_native;
 mod rectangle;
-mod seg_rtree;
-mod segment_union;
+mod rtree;
 mod utils;
 
 pub use coordinate::Coordinate;
-pub use flatbush::Flatbush;
-pub use packed_rtree::PackedRTree;
+pub use packed_rtree_auto_simd::PackedRTreeAutoSimd;
+pub use packed_rtree_native::PackedRTreeNative;
 pub use rectangle::{HasEnvelope, Rectangle};
-pub use seg_rtree::SegRTree;
-pub use segment_union::SegmentUnion;
+pub use rtree::RTree;
+
+#[cfg(test)]
+mod tests;

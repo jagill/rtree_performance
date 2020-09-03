@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rtree_performance::{Coordinate, Flatbush, PackedRTree, Rectangle, SegRTree};
+use rtree_performance::{Coordinate, PackedRTreeAutoSimd, PackedRTreeNative, RTree, Rectangle};
 
 use rtree_performance::from_wkt::{parse_wkt, Geometry};
 use std::fs;
@@ -14,41 +14,23 @@ pub fn construction_benchmark(c: &mut Criterion) {
         println!("Polygon {} has {} segments.", poly_idx, rectangles.len());
         for degree in [8, 16].iter() {
             group.bench_with_input(
-                BenchmarkId::new(format!("seg_rtree_build.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_native_build.{}", poly_idx), degree),
                 degree,
                 |b, &d| {
                     b.iter(|| {
-                        SegRTree::new(d, rectangles);
+                        PackedRTreeNative::new(d, rectangles);
                     })
                 },
             );
             group.bench_with_input(
-                BenchmarkId::new(format!("packed_rtree_build.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_auto_simd_build.{}", poly_idx), degree),
                 degree,
                 |b, &d| {
                     b.iter(|| {
-                        PackedRTree::new(d, rectangles);
+                        PackedRTreeAutoSimd::new(d, rectangles);
                     })
                 },
             );
-            group.bench_with_input(
-                BenchmarkId::new(format!("flatbush_unsorted_build.{}", poly_idx), degree),
-                degree,
-                |b, &d| {
-                    b.iter(|| {
-                        Flatbush::new_unsorted(d, rectangles);
-                    })
-                },
-            );
-            // group.bench_with_input(
-            //     BenchmarkId::new(format!("flatbush_sorted_build.{}", poly_idx), degree),
-            //     degree,
-            //     |b, &d| {
-            //         b.iter(|| {
-            //             Flatbush::new(d, rectangles);
-            //         })
-            //     },
-            // );
         }
     }
     group.finish();
@@ -73,6 +55,7 @@ fn read_test_case(name: &str) -> Vec<Vec<Geometry>> {
 fn get_rectangles_list(name: &str) -> Vec<Vec<Rectangle>> {
     let positions_list: Vec<Vec<Coordinate>> = read_test_case(name)
         .into_iter()
+        .take(5)
         .map(|mut geoms| geoms.remove(0))
         .filter_map(|geom| match geom {
             Geometry::Polygon(poly) => Some(poly.shell),

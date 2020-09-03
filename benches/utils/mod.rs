@@ -22,7 +22,7 @@ pub(crate) fn read_test_case(name: &str) -> Vec<Vec<Geometry>> {
 pub(crate) fn get_positions_list(name: &str) -> Vec<Vec<Coordinate>> {
     let positions_list: Vec<Vec<Coordinate>> = read_test_case(name)
         .into_iter()
-        .take(20)
+        .take(5)
         .map(|mut geoms| geoms.remove(0))
         .filter_map(|geom| match geom {
             Geometry::Polygon(poly) => Some(poly.shell),
@@ -35,7 +35,6 @@ pub(crate) fn get_positions_list(name: &str) -> Vec<Vec<Coordinate>> {
 pub(crate) fn make_rectangles_list(positions_list: &[Vec<Coordinate>]) -> Vec<Vec<Rectangle>> {
     let rectangles_list: Vec<Vec<Rectangle>> = positions_list
         .iter()
-        .take(20)
         .map(|positions| {
             positions
                 .windows(2)

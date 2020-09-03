@@ -25,8 +25,8 @@ pub(crate) fn calculate_level_indices(degree: usize, num_items: usize) -> Vec<us
     level_indices
 }
 
-pub(crate) fn copy_into_slice<T: Copy>(tree: &mut [T], index: usize, items: &[T]) {
-    let (_, subtree) = tree.split_at_mut(index);
-    let (subtree, _) = subtree.split_at_mut(items.len());
-    subtree.copy_from_slice(items);
+pub(crate) fn copy_into_slice<T: Copy>(slice: &mut [T], index: usize, items: &[T]) {
+    let (_, subslice) = slice.split_at_mut(index);
+    let (subslice, _) = subslice.split_at_mut(items.len());
+    subslice.copy_from_slice(items);
 }
