@@ -38,42 +38,6 @@ impl RTree for PackedRTreeNative {
         }
     }
 
-    fn new(mut degree: usize, rects: &[Rectangle]) -> Self {
-        if rects.is_empty() {
-            return PackedRTreeNative::new_empty();
-        }
-
-        degree = degree.max(2);
-        let size = rects.len();
-        let level_indices = calculate_level_indices(degree, size);
-        let tree_size = level_indices[level_indices.len() - 1] + 1;
-        let mut tree = Vec::with_capacity(tree_size);
-
-        tree.extend(rects);
-
-        for level in 1..level_indices.len() {
-            let level_index = level_indices[level];
-            tree.extend(vec![Rectangle::new_empty(); level_index - tree.len()]);
-            assert_eq!(tree.len(), level_index);
-
-            let level_rects = &tree[level_indices[level - 1]..level_indices[level]];
-            let next_rects: Vec<Rectangle> = level_rects
-                .chunks(degree)
-                .map(|rects| Rectangle::of(rects))
-                .collect();
-            tree.extend(next_rects);
-        }
-
-        tree.shrink_to_fit();
-
-        Self {
-            degree,
-            size,
-            level_indices,
-            tree,
-        }
-    }
-
     /**
      * Find geometries that might intersect the query_rect.
      *
@@ -129,6 +93,42 @@ impl PackedRTreeNative {
             size: 0,
             level_indices: Vec::new(),
             tree: Vec::new(),
+        }
+    }
+
+    pub fn new(mut degree: usize, rects: &[Rectangle]) -> Self {
+        if rects.is_empty() {
+            return PackedRTreeNative::new_empty();
+        }
+
+        degree = degree.max(2);
+        let size = rects.len();
+        let level_indices = calculate_level_indices(degree, size);
+        let tree_size = level_indices[level_indices.len() - 1] + 1;
+        let mut tree = Vec::with_capacity(tree_size);
+
+        tree.extend(rects);
+
+        for level in 1..level_indices.len() {
+            let level_index = level_indices[level];
+            tree.extend(vec![Rectangle::new_empty(); level_index - tree.len()]);
+            assert_eq!(tree.len(), level_index);
+
+            let level_rects = &tree[level_indices[level - 1]..level_indices[level]];
+            let next_rects: Vec<Rectangle> = level_rects
+                .chunks(degree)
+                .map(|rects| Rectangle::of(rects))
+                .collect();
+            tree.extend(next_rects);
+        }
+
+        tree.shrink_to_fit();
+
+        Self {
+            degree,
+            size,
+            level_indices,
+            tree,
         }
     }
 

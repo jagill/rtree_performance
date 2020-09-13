@@ -50,48 +50,6 @@ impl RTree for PackedRTreeAutoSimd {
         }
     }
 
-    fn new(mut degree: usize, rects: &[Rectangle]) -> Self {
-        if rects.is_empty() {
-            return PackedRTreeAutoSimd::new_empty();
-        }
-
-        degree = degree.max(2);
-        let size = rects.len();
-        let level_indices = calculate_level_indices(degree, size);
-        let tree_size = level_indices[level_indices.len() - 1] + 1;
-        let mut tree = vec![BBox::EMPTY_BBOX; tree_size];
-        for (i, rect) in rects.iter().enumerate() {
-            tree[i] = rect.into();
-        }
-
-        for level in 1..level_indices.len() {
-            let level_index = level_indices[level];
-            let previous_items = &tree[level_indices[level - 1]..level_index];
-            let next_items: Vec<BBox> = previous_items
-                .chunks(degree)
-                .map(|bboxes| {
-                    let mut out = BBox::EMPTY_BBOX;
-                    for bbox in bboxes {
-                        out.0[0] = out.0[0].min(bbox.0[0]);
-                        out.0[1] = out.0[1].min(bbox.0[1]);
-                        out.0[2] = out.0[2].min(bbox.0[2]);
-                        out.0[3] = out.0[3].min(bbox.0[3]);
-                    }
-                    out
-                })
-                .collect();
-            copy_into_slice(&mut tree, level_index, &next_items);
-        }
-
-        tree.shrink_to_fit();
-        Self {
-            degree,
-            size,
-            level_indices,
-            tree,
-        }
-    }
-
     fn query_rect(&self, rect: &Rectangle) -> Vec<usize> {
         let mut results = Vec::new();
         if self.is_empty() {
@@ -151,6 +109,48 @@ impl PackedRTreeAutoSimd {
             size: 0,
             level_indices: Vec::new(),
             tree: Vec::new(),
+        }
+    }
+
+    pub fn new(mut degree: usize, rects: &[Rectangle]) -> Self {
+        if rects.is_empty() {
+            return PackedRTreeAutoSimd::new_empty();
+        }
+
+        degree = degree.max(2);
+        let size = rects.len();
+        let level_indices = calculate_level_indices(degree, size);
+        let tree_size = level_indices[level_indices.len() - 1] + 1;
+        let mut tree = vec![BBox::EMPTY_BBOX; tree_size];
+        for (i, rect) in rects.iter().enumerate() {
+            tree[i] = rect.into();
+        }
+
+        for level in 1..level_indices.len() {
+            let level_index = level_indices[level];
+            let previous_items = &tree[level_indices[level - 1]..level_index];
+            let next_items: Vec<BBox> = previous_items
+                .chunks(degree)
+                .map(|bboxes| {
+                    let mut out = BBox::EMPTY_BBOX;
+                    for bbox in bboxes {
+                        out.0[0] = out.0[0].min(bbox.0[0]);
+                        out.0[1] = out.0[1].min(bbox.0[1]);
+                        out.0[2] = out.0[2].min(bbox.0[2]);
+                        out.0[3] = out.0[3].min(bbox.0[3]);
+                    }
+                    out
+                })
+                .collect();
+            copy_into_slice(&mut tree, level_index, &next_items);
+        }
+
+        tree.shrink_to_fit();
+        Self {
+            degree,
+            size,
+            level_indices,
+            tree,
         }
     }
 
