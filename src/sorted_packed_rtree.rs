@@ -1,12 +1,12 @@
 use std::cmp::Ordering;
 
 use crate::hilbert::Hilbert;
-use crate::{HasEnvelope, PackedRTreeNative, RTree, Rectangle};
+use crate::{HasEnvelope, PackedRTreeUnsorted, RTree, Rectangle};
 
 type Entry = (usize, Rectangle);
 
 pub struct SortedPackedRTree {
-    raw_rtree: PackedRTreeNative,
+    raw_rtree: PackedRTreeUnsorted,
     shuffled_indices: Vec<usize>,
 }
 
@@ -39,7 +39,7 @@ impl RTree for SortedPackedRTree {
 impl SortedPackedRTree {
     pub fn new_empty() -> Self {
         SortedPackedRTree {
-            raw_rtree: PackedRTreeNative::new_empty(),
+            raw_rtree: PackedRTreeUnsorted::new_empty(),
             shuffled_indices: Vec::new(),
         }
     }
@@ -62,7 +62,7 @@ impl SortedPackedRTree {
         let rects: Vec<Rectangle> = entries.iter().map(|(_h, _i, rect)| *rect).collect();
         SortedPackedRTree {
             shuffled_indices: entries.iter().map(|(_h, i, _e)| *i).collect(),
-            raw_rtree: PackedRTreeNative::new(degree, &rects),
+            raw_rtree: PackedRTreeUnsorted::new(degree, &rects),
         }
     }
 
@@ -104,7 +104,7 @@ impl SortedPackedRTree {
 
         SortedPackedRTree {
             shuffled_indices,
-            raw_rtree: PackedRTreeNative::new(degree, &rects),
+            raw_rtree: PackedRTreeUnsorted::new(degree, &rects),
         }
     }
 }

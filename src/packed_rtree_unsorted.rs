@@ -9,7 +9,7 @@ use crate::{RTree, Rectangle};
 use core::ops::Range;
 
 #[derive(Debug)]
-pub struct PackedRTreeNative {
+pub struct PackedRTreeUnsorted {
     degree: usize,
     size: usize,
     // nodes in level i are (level_indices[i] .. level_indices[i + 1]) (end exclusive)
@@ -17,7 +17,7 @@ pub struct PackedRTreeNative {
     tree: Vec<Rectangle>,
 }
 
-impl RTree for PackedRTreeNative {
+impl RTree for PackedRTreeUnsorted {
     fn is_empty(&self) -> bool {
         self.size == 0
     }
@@ -86,7 +86,7 @@ impl RTree for PackedRTreeNative {
     }
 }
 
-impl PackedRTreeNative {
+impl PackedRTreeUnsorted {
     pub fn new_empty() -> Self {
         Self {
             degree: 2,
@@ -98,7 +98,7 @@ impl PackedRTreeNative {
 
     pub fn new(mut degree: usize, rects: &[Rectangle]) -> Self {
         if rects.is_empty() {
-            return PackedRTreeNative::new_empty();
+            return PackedRTreeUnsorted::new_empty();
         }
 
         degree = degree.max(2);
