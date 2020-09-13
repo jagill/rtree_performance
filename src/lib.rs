@@ -5,7 +5,7 @@ mod packed_rtree_auto_simd;
 mod packed_rtree_unsorted;
 mod rectangle;
 mod rtree;
-mod sorted_packed_rtree;
+mod packed_rtree;
 mod utils;
 
 pub use coordinate::Coordinate;
@@ -13,7 +13,7 @@ pub use packed_rtree_auto_simd::PackedRTreeAutoSimd;
 pub use packed_rtree_unsorted::PackedRTreeUnsorted;
 pub use rectangle::{HasEnvelope, Rectangle};
 pub use rtree::RTree;
-pub use sorted_packed_rtree::SortedPackedRTree;
+pub use packed_rtree::PackedRTree;
 
 #[cfg(test)]
 mod tests;

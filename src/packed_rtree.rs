@@ -5,12 +5,12 @@ use crate::{HasEnvelope, PackedRTreeUnsorted, RTree, Rectangle};
 
 type Entry = (usize, Rectangle);
 
-pub struct SortedPackedRTree {
+pub struct PackedRTree {
     raw_rtree: PackedRTreeUnsorted,
     shuffled_indices: Vec<usize>,
 }
 
-impl RTree for SortedPackedRTree {
+impl RTree for PackedRTree {
     fn is_empty(&self) -> bool {
         self.raw_rtree.is_empty()
     }
@@ -36,9 +36,9 @@ impl RTree for SortedPackedRTree {
     }
 }
 
-impl SortedPackedRTree {
+impl PackedRTree {
     pub fn new_empty() -> Self {
-        SortedPackedRTree {
+        PackedRTree {
             raw_rtree: PackedRTreeUnsorted::new_empty(),
             shuffled_indices: Vec::new(),
         }
@@ -60,7 +60,7 @@ impl SortedPackedRTree {
 
         entries.sort_unstable_by_key(|&(h, _, _)| h);
         let rects: Vec<Rectangle> = entries.iter().map(|(_h, _i, rect)| *rect).collect();
-        SortedPackedRTree {
+        PackedRTree {
             shuffled_indices: entries.iter().map(|(_h, i, _e)| *i).collect(),
             raw_rtree: PackedRTreeUnsorted::new(degree, &rects),
         }
@@ -102,7 +102,7 @@ impl SortedPackedRTree {
             rects.extend(vec![empty_rect; excess]);
         }
 
-        SortedPackedRTree {
+        PackedRTree {
             shuffled_indices,
             raw_rtree: PackedRTreeUnsorted::new(degree, &rects),
         }

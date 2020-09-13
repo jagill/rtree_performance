@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rtree_performance::{Coordinate, PackedRTreeAutoSimd, PackedRTreeNative, RTree, Rectangle};
+use rtree_performance::{Coordinate, PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
 
 use rtree_performance::from_wkt::{parse_wkt, Geometry};
 use std::fs;
@@ -14,11 +14,11 @@ pub fn construction_benchmark(c: &mut Criterion) {
         println!("Polygon {} has {} segments.", poly_idx, rectangles.len());
         for degree in [8, 16].iter() {
             group.bench_with_input(
-                BenchmarkId::new(format!("packed_rtree_native_build.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_unsorted_build.{}", poly_idx), degree),
                 degree,
                 |b, &d| {
                     b.iter(|| {
-                        PackedRTreeNative::new(d, rectangles);
+                        PackedRTreeUnsorted::new(d, rectangles);
                     })
                 },
             );

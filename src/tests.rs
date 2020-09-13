@@ -1,11 +1,11 @@
-use crate::{PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle, SortedPackedRTree};
+use crate::{PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle, PackedRTree};
 
 #[test]
 fn test_empty_rtree() {
     assert_empty_rtree(PackedRTreeUnsorted::new_empty());
     assert_empty_rtree(PackedRTreeAutoSimd::new_empty());
-    assert_empty_rtree(SortedPackedRTree::new_hilbert(2, &Vec::<Rectangle>::new()));
-    assert_empty_rtree(SortedPackedRTree::new_omt(2, &Vec::<Rectangle>::new()));
+    assert_empty_rtree(PackedRTree::new_hilbert(2, &Vec::<Rectangle>::new()));
+    assert_empty_rtree(PackedRTree::new_omt(2, &Vec::<Rectangle>::new()));
 }
 
 fn assert_empty_rtree(tree: impl RTree) {
@@ -32,8 +32,8 @@ fn _assert_queries(max_index: usize, tree: &PackedRTreeAutoSimd, rects: &[Rectan
 fn test_build_tree() {
     assert_build_tree(PackedRTreeUnsorted::new);
     assert_build_tree(PackedRTreeAutoSimd::new);
-    assert_build_tree(SortedPackedRTree::new_hilbert);
-    assert_build_tree(SortedPackedRTree::new_omt);
+    assert_build_tree(PackedRTree::new_hilbert);
+    assert_build_tree(PackedRTree::new_omt);
 }
 
 fn assert_build_tree<R, C>(constructor: C)
@@ -192,8 +192,8 @@ where
 fn test_intersection_candidates() {
     assert_intersections(PackedRTreeUnsorted::new);
     assert_intersections(PackedRTreeAutoSimd::new);
-    assert_intersections(SortedPackedRTree::new_hilbert);
-    assert_intersections(SortedPackedRTree::new_omt);
+    assert_intersections(PackedRTree::new_hilbert);
+    assert_intersections(PackedRTree::new_omt);
 }
 
 // #[test]
