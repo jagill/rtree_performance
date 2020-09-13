@@ -15,7 +15,7 @@ pub fn query_benchmark(c: &mut Criterion) {
     for (poly_idx, rectangles) in rectangles_list.iter().enumerate() {
         println!("Polygon {} has {} segments.", poly_idx, rectangles.len());
         for &degree in [8, 16].iter() {
-            let rtree_native = PackedRTreeUnsorted::new(degree, rectangles);
+            let rtree_native = PackedRTreeUnsorted::new(degree, rectangles.clone());
             let rtree_auto_simd = PackedRTreeAutoSimd::new(degree, rectangles);
 
             let query_rects: Vec<_> = get_random_points(rtree_native.envelope(), 1000, 342)

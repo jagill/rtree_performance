@@ -1,11 +1,11 @@
-use crate::{PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle, PackedRTree};
+use crate::{PackedRTree, PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
 
 #[test]
 fn test_empty_rtree() {
     assert_empty_rtree(PackedRTreeUnsorted::new_empty());
     assert_empty_rtree(PackedRTreeAutoSimd::new_empty());
     assert_empty_rtree(PackedRTree::new_hilbert(2, &Vec::<Rectangle>::new()));
-    assert_empty_rtree(PackedRTree::new_omt(2, &Vec::<Rectangle>::new()));
+    assert_empty_rtree(PackedRTree::new_omt(&Vec::<Rectangle>::new()));
 }
 
 fn assert_empty_rtree(tree: impl RTree) {
@@ -30,16 +30,16 @@ fn _assert_queries(max_index: usize, tree: &PackedRTreeAutoSimd, rects: &[Rectan
 
 #[test]
 fn test_build_tree() {
-    assert_build_tree(PackedRTreeUnsorted::new);
-    assert_build_tree(PackedRTreeAutoSimd::new);
-    assert_build_tree(PackedRTree::new_hilbert);
-    assert_build_tree(PackedRTree::new_omt);
+    assert_build_tree(|envs| PackedRTreeUnsorted::new(16, envs));
+    assert_build_tree(|envs| PackedRTreeAutoSimd::new(16, &envs));
+    assert_build_tree(|envs| PackedRTree::new_hilbert(16, &envs));
+    assert_build_tree(|envs| PackedRTree::new_omt(&envs));
 }
 
 fn assert_build_tree<R, C>(constructor: C)
 where
     R: RTree,
-    C: FnOnce(usize, &[Rectangle]) -> R,
+    C: FnOnce(Vec<Rectangle>) -> R,
 {
     let degree = 4;
     let e0 = Rectangle::new((7.0, 44.).into(), (8., 48.).into());
@@ -52,7 +52,7 @@ where
     let e7 = Rectangle::new((7.1, 48.).into(), (10., 56.).into());
     let envs = vec![e0, e1, e2, e3, e4, e5, e6, e7];
 
-    let rtree = constructor(degree, &envs);
+    let rtree = constructor(envs.clone());
     let query_point = (43., 43.).into();
     let query_rect = Rectangle::new(query_point, query_point);
 
@@ -176,10 +176,10 @@ fn get_envelopes() -> Vec<Rectangle> {
 fn assert_intersections<R, C>(constructor: C)
 where
     R: RTree,
-    C: FnOnce(usize, &[Rectangle]) -> R,
+    C: FnOnce(Vec<Rectangle>) -> R,
 {
     let envelopes = get_envelopes();
-    let tree = constructor(16, &envelopes);
+    let tree = constructor(envelopes.clone());
     let query_rect = Rectangle::new((40., 40.).into(), (60., 60.).into());
 
     let brute_results = find_brute_intersections(&query_rect, &envelopes);
@@ -190,10 +190,10 @@ where
 
 #[test]
 fn test_intersection_candidates() {
-    assert_intersections(PackedRTreeUnsorted::new);
-    assert_intersections(PackedRTreeAutoSimd::new);
-    assert_intersections(PackedRTree::new_hilbert);
-    assert_intersections(PackedRTree::new_omt);
+    assert_intersections(|envs| PackedRTreeUnsorted::new(16, envs));
+    assert_intersections(|envs| PackedRTreeAutoSimd::new(16, &envs));
+    assert_intersections(|envs| PackedRTree::new_hilbert(16, &envs));
+    assert_intersections(|envs| PackedRTree::new_omt(&envs));
 }
 
 // #[test]

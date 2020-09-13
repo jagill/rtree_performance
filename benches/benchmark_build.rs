@@ -1,5 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rtree_performance::{Coordinate, PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
+use rtree_performance::{
+    Coordinate, PackedRTree, PackedRTreeAutoSimd, PackedRTreeUnsorted, Rectangle,
+};
 
 use rtree_performance::from_wkt::{parse_wkt, Geometry};
 use std::fs;
@@ -12,22 +14,40 @@ pub fn construction_benchmark(c: &mut Criterion) {
 
     for (poly_idx, rectangles) in rectangles_list.iter().enumerate() {
         println!("Polygon {} has {} segments.", poly_idx, rectangles.len());
-        for degree in [8, 16].iter() {
+        for degree in [16].iter() {
             group.bench_with_input(
                 BenchmarkId::new(format!("packed_rtree_unsorted_build.{}", poly_idx), degree),
                 degree,
                 |b, &d| {
                     b.iter(|| {
-                        PackedRTreeUnsorted::new(d, rectangles);
+                        PackedRTreeUnsorted::new(d, rectangles.clone());
+                    })
+                },
+            );
+            // group.bench_with_input(
+            //     BenchmarkId::new(format!("packed_rtree_auto_simd_build.{}", poly_idx), degree),
+            //     degree,
+            //     |b, &d| {
+            //         b.iter(|| {
+            //             PackedRTreeAutoSimd::new(d, rectangles);
+            //         })
+            //     },
+            // );
+            group.bench_with_input(
+                BenchmarkId::new(format!("packed_rtree_hilbert_build.{}", poly_idx), degree),
+                degree,
+                |b, &d| {
+                    b.iter(|| {
+                        PackedRTree::new_hilbert(d, rectangles);
                     })
                 },
             );
             group.bench_with_input(
-                BenchmarkId::new(format!("packed_rtree_auto_simd_build.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_omt_build.{}", poly_idx), degree),
                 degree,
-                |b, &d| {
+                |b, &_d| {
                     b.iter(|| {
-                        PackedRTreeAutoSimd::new(d, rectangles);
+                        PackedRTree::new_omt(rectangles);
                     })
                 },
             );

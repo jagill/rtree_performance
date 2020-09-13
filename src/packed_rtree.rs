@@ -62,12 +62,11 @@ impl PackedRTree {
         let rects: Vec<Rectangle> = entries.iter().map(|(_h, _i, rect)| *rect).collect();
         PackedRTree {
             shuffled_indices: entries.iter().map(|(_h, i, _e)| *i).collect(),
-            raw_rtree: PackedRTreeUnsorted::new(degree, &rects),
+            raw_rtree: PackedRTreeUnsorted::new(degree, rects),
         }
     }
 
-    pub fn new_omt(_degree: usize, items: &[impl HasEnvelope]) -> Self {
-        // FIXME: adding _degree param just to make tests easier.
+    pub fn new_omt(items: &[impl HasEnvelope]) -> Self {
         if items.is_empty() {
             return Self::new_empty();
         }
@@ -104,7 +103,7 @@ impl PackedRTree {
 
         PackedRTree {
             shuffled_indices,
-            raw_rtree: PackedRTreeUnsorted::new(degree, &rects),
+            raw_rtree: PackedRTreeUnsorted::new(degree, rects),
         }
     }
 }

@@ -96,7 +96,7 @@ impl PackedRTreeUnsorted {
         }
     }
 
-    pub fn new(mut degree: usize, rects: &[Rectangle]) -> Self {
+    pub fn new(mut degree: usize, mut rects: Vec<Rectangle>) -> Self {
         if rects.is_empty() {
             return PackedRTreeUnsorted::new_empty();
         }
@@ -105,30 +105,28 @@ impl PackedRTreeUnsorted {
         let size = rects.len();
         let level_indices = calculate_level_indices(degree, size);
         let tree_size = level_indices[level_indices.len() - 1] + 1;
-        let mut tree = Vec::with_capacity(tree_size);
-
-        tree.extend(rects);
+        rects.reserve(tree_size);
 
         for level in 1..level_indices.len() {
             let level_index = level_indices[level];
-            tree.extend(vec![Rectangle::new_empty(); level_index - tree.len()]);
-            assert_eq!(tree.len(), level_index);
+            rects.extend(vec![Rectangle::new_empty(); level_index - rects.len()]);
+            assert_eq!(rects.len(), level_index);
 
-            let level_rects = &tree[level_indices[level - 1]..level_indices[level]];
+            let level_rects = &rects[level_indices[level - 1]..level_indices[level]];
             let next_rects: Vec<Rectangle> = level_rects
                 .chunks(degree)
                 .map(|rects| Rectangle::of(rects))
                 .collect();
-            tree.extend(next_rects);
+            rects.extend(next_rects);
         }
 
-        tree.shrink_to_fit();
+        rects.shrink_to_fit();
 
         Self {
             degree,
             size,
             level_indices,
-            tree,
+            tree: rects,
         }
     }
 
