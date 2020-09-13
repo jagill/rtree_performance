@@ -2,7 +2,7 @@ mod utils;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use rtree_performance::{PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
+use rtree_performance::{PackedRTree, PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
 use utils::{get_positions_list, get_random_points, make_rectangles_list};
 
 pub fn query_benchmark(c: &mut Criterion) {
@@ -17,6 +17,8 @@ pub fn query_benchmark(c: &mut Criterion) {
         for &degree in [8, 16].iter() {
             let rtree_native = PackedRTreeUnsorted::new(degree, rectangles.clone());
             let rtree_auto_simd = PackedRTreeAutoSimd::new(degree, rectangles);
+            let rtree_hilbert = PackedRTree::new_hilbert(degree, rectangles);
+            let rtree_omt = PackedRTree::new_omt(rectangles);
 
             let query_rects: Vec<_> = get_random_points(rtree_native.envelope(), 1000, 342)
                 .into_iter()
@@ -35,13 +37,37 @@ pub fn query_benchmark(c: &mut Criterion) {
                 },
             );
 
+            // group.bench_function(
+            //     BenchmarkId::new(format!("packed_rtree_auto_simd_query.{}", poly_idx), degree),
+            //     |b| {
+            //         // for coords in &positions_list {
+            //         b.iter(|| {
+            //             for rect in &query_rects {
+            //                 black_box(rtree_auto_simd.query_rect(rect));
+            //             }
+            //         })
+            //     },
+            // );
+
             group.bench_function(
-                BenchmarkId::new(format!("packed_rtree_auto_simd_query.{}", poly_idx), degree),
+                BenchmarkId::new(format!("packed_rtree_hilbert_query.{}", poly_idx), degree),
                 |b| {
                     // for coords in &positions_list {
                     b.iter(|| {
                         for rect in &query_rects {
-                            black_box(rtree_auto_simd.query_rect(rect));
+                            black_box(rtree_hilbert.query_rect(rect));
+                        }
+                    })
+                },
+            );
+
+            group.bench_function(
+                BenchmarkId::new(format!("packed_rtree_omt_query.{}", poly_idx), degree),
+                |b| {
+                    // for coords in &positions_list {
+                    b.iter(|| {
+                        for rect in &query_rects {
+                            black_box(rtree_omt.query_rect(rect));
                         }
                     })
                 },
