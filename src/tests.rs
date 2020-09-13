@@ -4,10 +4,8 @@ use crate::{PackedRTreeAutoSimd, PackedRTreeNative, RTree, Rectangle, SortedPack
 fn test_empty_rtree() {
     assert_empty_rtree(PackedRTreeNative::new_empty());
     assert_empty_rtree(PackedRTreeAutoSimd::new_empty());
-    assert_empty_rtree(SortedPackedRTree::new_hilbert_sorted(
-        2,
-        &Vec::<Rectangle>::new(),
-    ));
+    assert_empty_rtree(SortedPackedRTree::new_hilbert(2, &Vec::<Rectangle>::new()));
+    assert_empty_rtree(SortedPackedRTree::new_omt(2, &Vec::<Rectangle>::new()));
 }
 
 fn assert_empty_rtree(tree: impl RTree) {
@@ -34,7 +32,8 @@ fn _assert_queries(max_index: usize, tree: &PackedRTreeAutoSimd, rects: &[Rectan
 fn test_build_tree() {
     assert_build_tree(PackedRTreeNative::new);
     assert_build_tree(PackedRTreeAutoSimd::new);
-    assert_build_tree(SortedPackedRTree::new_hilbert_sorted);
+    assert_build_tree(SortedPackedRTree::new_hilbert);
+    assert_build_tree(SortedPackedRTree::new_omt);
 }
 
 fn assert_build_tree<R, C>(constructor: C)
@@ -183,7 +182,7 @@ where
     let tree = constructor(16, &envelopes);
     let query_rect = Rectangle::new((40., 40.).into(), (60., 60.).into());
 
-    let brute_results = find_brute_intersections(query_rect, &envelopes);
+    let brute_results = find_brute_intersections(&query_rect, &envelopes);
     let mut rtree_results = tree.query_rect(&query_rect);
     rtree_results.sort();
     assert_eq!(rtree_results, brute_results);
@@ -193,7 +192,8 @@ where
 fn test_intersection_candidates() {
     assert_intersections(PackedRTreeNative::new);
     assert_intersections(PackedRTreeAutoSimd::new);
-    assert_intersections(SortedPackedRTree::new_hilbert_sorted);
+    assert_intersections(SortedPackedRTree::new_hilbert);
+    assert_intersections(SortedPackedRTree::new_omt);
 }
 
 // #[test]
@@ -231,7 +231,7 @@ fn test_intersection_candidates() {
 //     assert_eq!(rtree_results, vec![]);
 // }
 
-fn find_brute_intersections(query_rect: Rectangle, envelopes: &[Rectangle]) -> Vec<usize> {
+fn find_brute_intersections(query_rect: &Rectangle, envelopes: &[Rectangle]) -> Vec<usize> {
     envelopes
         .iter()
         .enumerate()
