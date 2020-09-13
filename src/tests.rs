@@ -41,7 +41,6 @@ where
     R: RTree,
     C: FnOnce(Vec<Rectangle>) -> R,
 {
-    let degree = 4;
     let e0 = Rectangle::new((7.0, 44.).into(), (8., 48.).into());
     let e1 = Rectangle::new((25., 48.).into(), (35., 55.).into());
     let e2 = Rectangle::new((98., 46.).into(), (99., 56.).into());

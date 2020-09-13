@@ -121,6 +121,7 @@ fn cmp_x(entry1: &Entry, entry2: &Entry) -> Ordering {
     // TODO: Use total_cmp when stabilized
     let x1 = x_center(&entry1.1);
     let x2 = x_center(&entry2.1);
+    // x1.total_cmp(&x2)
     match x1.partial_cmp(&x2) {
         Some(ord) => ord,
         None => {
@@ -142,6 +143,7 @@ fn cmp_x(entry1: &Entry, entry2: &Entry) -> Ordering {
 fn cmp_y(entry1: &Entry, entry2: &Entry) -> Ordering {
     let y1 = y_center(&entry1.1);
     let y2 = y_center(&entry2.1);
+    // y1.total_cmp(&y2)
     match y1.partial_cmp(&y2) {
         Some(ord) => ord,
         None => {
@@ -166,13 +168,16 @@ fn partition_omt(entries: &mut [Entry], ncols: usize, nrows: usize, start: usize
     }
 
     let mut results = Vec::new();
-    // TODO: Use partition_at_index_by here
-    entries.sort_unstable_by(cmp_x);
     let column_size = divup(size, ncols);
+    partition_to_chunks(column_size, entries, true);
     for ix in (0..size).step_by(column_size) {
         let actual_column_size = size.min(ix + column_size) - ix;
         let row_size = divup(actual_column_size, nrows);
-        entries[ix..(ix + actual_column_size)].sort_unstable_by(cmp_y);
+        partition_to_chunks(
+            column_size,
+            &mut entries[ix..(ix + actual_column_size)],
+            false,
+        );
         for iy in (ix..(ix + actual_column_size)).step_by(row_size) {
             let actual_row_size = (ix + actual_column_size).min(iy + row_size) - iy;
             results.extend(partition_omt(
@@ -193,4 +198,26 @@ fn divup(n: usize, d: usize) -> usize {
         _ => 1,
     };
     n / d + remainder
+}
+
+// Ported from github.com/mourner/rbush
+fn partition_to_chunks(chunk_size: usize, entries: &mut [Entry], along_x: bool) {
+    let mut stack = vec![0, entries.len()];
+
+    while !stack.is_empty() {
+        let high = stack.pop().unwrap();
+        let low = stack.pop().unwrap();
+        if (high - low) <= chunk_size {
+            continue;
+        }
+
+        let mid = low + chunk_size * divup(high - low, 2 * chunk_size);
+        if along_x {
+            order_stat::kth_by(&mut entries[low..high], mid - low, cmp_x);
+        } else {
+            order_stat::kth_by(&mut entries[low..high], mid - low, cmp_y);
+        }
+
+        stack.extend(vec![low, mid, mid, high]);
+    }
 }
