@@ -7,7 +7,7 @@ mod packed_rtree_auto_simd;
 mod packed_rtree_unsorted;
 mod rectangle;
 mod rtree;
-mod utils;
+pub mod utils;
 
 pub use coordinate::Coordinate;
 pub use packed_rtree::PackedRTree;

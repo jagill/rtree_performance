@@ -19,6 +19,12 @@ pub enum Geometry {
     MultiPolygon(Vec<Polygon>),
 }
 
+pub fn parse_wkt(wkt_str: &str) -> Result<Vec<Geometry>, String> {
+    let wkt_geoms = wkt::Wkt::from_str(wkt_str).map_err(|s| s.to_owned())?;
+    let geoms = wkt_geoms.items.into_iter().map(from_wkt_geometry).collect();
+    Ok(geoms)
+}
+
 impl From<Coord<f64>> for Coordinate {
     fn from(coord: Coord<f64>) -> Self {
         Coordinate {
@@ -38,13 +44,6 @@ fn coords_to_positions(coords: Vec<Coord<f64>>) -> Vec<Coordinate> {
 
 fn linestring_to_positions(linestring: types::LineString<f64>) -> Vec<Coordinate> {
     coords_to_positions(linestring.0)
-}
-
-#[allow(dead_code)]
-pub fn parse_wkt(wkt_str: &str) -> Result<Vec<Geometry>, &str> {
-    let wkt_geoms = wkt::Wkt::from_str(wkt_str)?;
-    let geoms = wkt_geoms.items.into_iter().map(from_wkt_geometry).collect();
-    Ok(geoms)
 }
 
 fn from_wkt_geometry(geom: wkt::Geometry<f64>) -> Geometry {

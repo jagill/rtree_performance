@@ -1,6 +1,6 @@
 use crate::{Coordinate, Rectangle};
 
-pub(crate) fn rectangles_from_coordinates(coords: &[Coordinate]) -> Vec<Rectangle> {
+pub fn rectangles_from_coordinates(coords: &[Coordinate]) -> Vec<Rectangle> {
     coords
         .windows(2)
         .map(|c| Rectangle::new(c[0], c[1]))

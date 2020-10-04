@@ -4,18 +4,20 @@ use std::fs;
 use std::path::Path;
 
 use rtree_performance::from_wkt::{parse_wkt, Geometry};
+use rtree_performance::utils::rectangles_from_coordinates;
 use rtree_performance::{Coordinate, Rectangle};
 
 //// Utility functions
 
-pub(crate) fn read_test_case(name: &str) -> Vec<Vec<Geometry>> {
-    let filename = format!("benches/testdata/{}.wkt", name);
+pub(crate) fn read_test_case(name: &str) -> Vec<Geometry> {
+    let filename = format!("tests/testdata/{}.wkt", name);
     let filepath = Path::new("/Users/jagill/dev/rtree_performance").join(Path::new(&filename));
     let contents = fs::read_to_string(Path::new(&filepath)).unwrap();
 
     contents
         .split("\n\n")
         .map(|f| parse_wkt(f).unwrap())
+        .flatten()
         .collect()
 }
 
@@ -23,7 +25,6 @@ pub(crate) fn get_positions_list(name: &str) -> Vec<Vec<Coordinate>> {
     let positions_list: Vec<Vec<Coordinate>> = read_test_case(name)
         .into_iter()
         .take(5)
-        .map(|mut geoms| geoms.remove(0))
         .filter_map(|geom| match geom {
             Geometry::Polygon(poly) => Some(poly.shell),
             _ => None,
@@ -35,19 +36,9 @@ pub(crate) fn get_positions_list(name: &str) -> Vec<Vec<Coordinate>> {
 pub(crate) fn make_rectangles_list(positions_list: &[Vec<Coordinate>]) -> Vec<Vec<Rectangle>> {
     let rectangles_list: Vec<Vec<Rectangle>> = positions_list
         .iter()
-        .map(|positions| {
-            positions
-                .windows(2)
-                .map(|c| Rectangle::new(c[0], c[1]))
-                .collect()
-        })
+        .map(|coords| rectangles_from_coordinates(&coords))
         .collect();
     rectangles_list
-}
-
-pub(crate) fn get_rectangles_list(name: &str) -> Vec<Vec<Rectangle>> {
-    let positions_list = get_positions_list(name);
-    make_rectangles_list(&positions_list)
 }
 
 pub(crate) fn get_random_points(rect: Rectangle, n: usize, seed: u64) -> Vec<Coordinate> {
