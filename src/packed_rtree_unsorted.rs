@@ -51,7 +51,7 @@ impl RTree for PackedRTreeUnsorted {
         }
 
         let mut stack = Vec::new();
-        if query.intersects(self.envelope()) {
+        if query.intersects(&self.envelope()) {
             stack.push(self.root());
         }
 
@@ -70,9 +70,9 @@ impl RTree for PackedRTreeUnsorted {
             let children = &self.tree[first_child_index..(first_child_index + self.degree)];
 
             for (inc, child) in children.iter().enumerate() {
-                if query.intersects(*child) {
+                if query.intersects(child) {
                     let child_offset = first_child_offset + inc;
-                    if query.contains(*child) {
+                    if query.contains(child) {
                         // If it contains the node, it contains (and intersects) all the leaves
                         results.extend(self.get_leaf_range(child_level, child_offset))
                     } else {

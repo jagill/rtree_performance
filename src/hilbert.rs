@@ -56,7 +56,7 @@ impl Hilbert {
     #[allow(dead_code)]
     pub fn safe_hilbert(&self, position: Option<Coordinate>) -> u32 {
         match position {
-            Some(p) if self.env.contains(p) => self.hilbert(p),
+            Some(p) if self.env.contains(&p) => self.hilbert(p),
             _ => u32::max_value(),
         }
     }

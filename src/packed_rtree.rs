@@ -118,9 +118,16 @@ fn y_center(rect: &Rectangle) -> f64 {
 
 /// Order by x center, empties are last
 fn cmp_x(entry1: &Entry, entry2: &Entry) -> Ordering {
+    total_cmp(x_center(&entry1.1), x_center(&entry2.1))
+}
+
+/// Order by y center, empties are last
+fn cmp_y(entry1: &Entry, entry2: &Entry) -> Ordering {
+    total_cmp(y_center(&entry1.1), y_center(&entry2.1))
+}
+
+fn total_cmp(x1: f64, x2: f64) -> Ordering {
     // TODO: Use total_cmp when stabilized
-    let x1 = x_center(&entry1.1);
-    let x2 = x_center(&entry2.1);
     // x1.total_cmp(&x2)
     match x1.partial_cmp(&x2) {
         Some(ord) => ord,
@@ -128,28 +135,6 @@ fn cmp_x(entry1: &Entry, entry2: &Entry) -> Ordering {
             // One or both is a NaN
             if x1.is_nan() {
                 if x2.is_nan() {
-                    Ordering::Equal
-                } else {
-                    Ordering::Greater
-                }
-            } else {
-                Ordering::Less
-            }
-        }
-    }
-}
-
-/// Order by y center, empties are last
-fn cmp_y(entry1: &Entry, entry2: &Entry) -> Ordering {
-    let y1 = y_center(&entry1.1);
-    let y2 = y_center(&entry2.1);
-    // y1.total_cmp(&y2)
-    match y1.partial_cmp(&y2) {
-        Some(ord) => ord,
-        None => {
-            // One or both is a NaN
-            if y1.is_nan() {
-                if y2.is_nan() {
                     Ordering::Equal
                 } else {
                     Ordering::Greater
@@ -173,11 +158,7 @@ fn partition_omt(entries: &mut [Entry], ncols: usize, nrows: usize, start: usize
     for ix in (0..size).step_by(column_size) {
         let actual_column_size = size.min(ix + column_size) - ix;
         let row_size = divup(actual_column_size, nrows);
-        partition_to_chunks(
-            column_size,
-            &mut entries[ix..(ix + actual_column_size)],
-            false,
-        );
+        partition_to_chunks(row_size, &mut entries[ix..(ix + actual_column_size)], false);
         for iy in (ix..(ix + actual_column_size)).step_by(row_size) {
             let actual_row_size = (ix + actual_column_size).min(iy + row_size) - iy;
             results.extend(partition_omt(

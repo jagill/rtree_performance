@@ -73,7 +73,7 @@ impl Rectangle {
 
     pub fn of<T: HasEnvelope>(items: &[T]) -> Self {
         items.iter().fold(Rectangle::new_empty(), |mut s, r| {
-            s.expand(r.envelope());
+            s.expand(r);
             s
         })
     }
@@ -85,7 +85,7 @@ impl Rectangle {
         }
     }
 
-    pub fn intersects<T: HasEnvelope>(&self, item: T) -> bool {
+    pub fn intersects<T: HasEnvelope>(&self, item: &T) -> bool {
         let other = item.envelope();
         self.x_min <= other.x_max
             && self.x_max >= other.x_min
@@ -93,7 +93,7 @@ impl Rectangle {
             && self.y_max >= other.y_min
     }
 
-    pub fn contains<T: HasEnvelope>(&self, item: T) -> bool {
+    pub fn contains<T: HasEnvelope>(&self, item: &T) -> bool {
         let other = item.envelope();
         self.x_min <= other.x_min
             && self.x_max >= other.x_max
@@ -101,7 +101,7 @@ impl Rectangle {
             && self.y_max >= other.y_max
     }
 
-    pub fn merge<T: HasEnvelope>(&self, item: T) -> Self {
+    pub fn merge<T: HasEnvelope>(&self, item: &T) -> Self {
         let rect = item.envelope();
         Rectangle {
             x_min: self.x_min.min(rect.x_min),
@@ -111,7 +111,7 @@ impl Rectangle {
         }
     }
 
-    pub fn expand<T: HasEnvelope>(&mut self, item: T) {
+    pub fn expand<T: HasEnvelope>(&mut self, item: &T) {
         let rect = item.envelope();
         self.x_min = self.x_min.min(rect.x_min);
         self.y_min = self.y_min.min(rect.y_min);
