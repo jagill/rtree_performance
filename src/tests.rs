@@ -172,27 +172,30 @@ fn get_envelopes() -> Vec<Rectangle> {
         .collect()
 }
 
-fn assert_intersections<R, C>(constructor: C)
-where
-    R: RTree,
-    C: FnOnce(Vec<Rectangle>) -> R,
-{
-    let envelopes = get_envelopes();
-    let tree = constructor(envelopes.clone());
-    let query_rect = Rectangle::new((40., 40.).into(), (60., 60.).into());
-
-    let brute_results = find_brute_intersections(&query_rect, &envelopes);
-    let mut rtree_results = tree.query_rect(&query_rect);
-    rtree_results.sort();
-    assert_eq!(rtree_results, brute_results);
+fn get_rtree_intersections(query_rect: Rectangle, rtree: impl RTree) -> Vec<usize> {
+    let mut rtree_results = rtree.query_rect(&query_rect);
+    rtree_results.sort_unstable();
+    rtree_results
 }
 
 #[test]
 fn test_intersection_candidates() {
-    assert_intersections(|envs| PackedRTreeUnsorted::new(16, envs));
-    assert_intersections(|envs| PackedRTreeAutoSimd::new(16, &envs));
-    assert_intersections(|envs| PackedRTree::new_hilbert(16, &envs));
-    assert_intersections(|envs| PackedRTree::new_omt(&envs));
+    let envelopes = get_envelopes();
+    let query_rect = Rectangle::new((40., 40.).into(), (60., 60.).into());
+    let brute_results = find_brute_intersections(&query_rect, &envelopes);
+
+    let results =
+        get_rtree_intersections(query_rect, PackedRTreeUnsorted::new(16, envelopes.clone()));
+    assert_eq!(results, brute_results);
+
+    let results = get_rtree_intersections(query_rect, PackedRTreeAutoSimd::new(16, &envelopes));
+    assert_eq!(results, brute_results);
+
+    let results = get_rtree_intersections(query_rect, PackedRTree::new_hilbert(16, &envelopes));
+    assert_eq!(results, brute_results);
+
+    let results = get_rtree_intersections(query_rect, PackedRTree::new_omt(&envelopes));
+    assert_eq!(results, brute_results);
 }
 
 // #[test]

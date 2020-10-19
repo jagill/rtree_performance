@@ -88,8 +88,8 @@ impl PackedRTree {
 
         let mut shuffled_indices: Vec<usize> = Vec::with_capacity(total_size);
         let mut rects: Vec<Rectangle> = Vec::with_capacity(total_size);
-        // While 0 is a valid index, those leaves are empty and should never match
-        let empty_index = 0;
+        // If we match an empty rect, this will cause an out-of-bounds panic.
+        let empty_index = usize::MAX;
         let empty_rect = Rectangle::new_empty();
         for (&last_offset, &next_offset) in offsets.iter().zip(&offsets[1..]) {
             let these_entries = &entries[last_offset..next_offset];

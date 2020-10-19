@@ -87,6 +87,17 @@ impl RTree for PackedRTreeUnsorted {
 }
 
 impl PackedRTreeUnsorted {
+    pub fn leaves(&self) -> &[Rectangle] {
+        let leaf_size = self.level_indices.len();
+        if leaf_size == 0 {
+            &[]
+        } else if leaf_size == 1 {
+            &self.tree[..1]
+        } else {
+            &self.tree[..self.level_indices[1]]
+        }
+    }
+
     pub fn new_empty() -> Self {
         Self {
             degree: 2,
@@ -135,12 +146,18 @@ impl PackedRTreeUnsorted {
     }
 
     /// Get the index range for leaf nodes under this node.
-    pub(crate) fn get_leaf_range(&self, level: usize, offset: usize) -> Range<usize> {
+    pub(crate) fn get_leaf_range(&self, level: usize, offset: usize) -> Vec<usize> {
+        // pub(crate) fn get_leaf_range(&self, level: usize, offset: usize) -> Range<usize> {
         let width = self.degree.pow(level as u32);
-        Range {
+        let range = Range {
             start: width * offset,
             // index is for coordinates, and coordinates.len() == rectangles.len() + 1
             end: self.size.min(width * (offset + 1)),
-        }
+        };
+        let result: Vec<usize> = range
+            .into_iter()
+            .filter(|i| !self.tree[*i].is_empty())
+            .collect();
+        result
     }
 }
