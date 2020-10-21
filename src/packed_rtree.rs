@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::hilbert::Hilbert;
+use crate::utils::divup;
 use crate::{HasEnvelope, PackedRTreeUnsorted, RTree, Rectangle};
 
 type Entry = (usize, Rectangle);
@@ -84,8 +85,8 @@ impl PackedRTree {
         let mut offsets = vec![0];
         offsets.extend(partition_omt(&mut entries, ncols, nrows, 0));
         offsets.sort_unstable();
-        let total_size = offsets[offsets.len() - 1];
 
+        let total_size = divup(items.len(), degree) * degree;
         let mut shuffled_indices: Vec<usize> = Vec::with_capacity(total_size);
         let mut rects: Vec<Rectangle> = Vec::with_capacity(total_size);
         // If we match an empty rect, this will cause an out-of-bounds panic.
@@ -171,14 +172,6 @@ fn partition_omt(entries: &mut [Entry], ncols: usize, nrows: usize, start: usize
     }
 
     results
-}
-
-fn divup(n: usize, d: usize) -> usize {
-    let remainder = match n % d {
-        0 => 0,
-        _ => 1,
-    };
-    n / d + remainder
 }
 
 // Ported from github.com/mourner/rbush
