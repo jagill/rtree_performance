@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 wkt = "^0.8"
-order-stat = "^0.1"
 
 [dev-dependencies]
 criterion = "^0.3"

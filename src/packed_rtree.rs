@@ -187,9 +187,9 @@ fn partition_to_chunks(chunk_size: usize, entries: &mut [Entry], along_x: bool) 
 
         let mid = low + chunk_size * divup(high - low, 2 * chunk_size);
         if along_x {
-            order_stat::kth_by(&mut entries[low..high], mid - low, cmp_x);
+            &mut entries[low..high].partition_at_index_by(mid - low, cmp_x);
         } else {
-            order_stat::kth_by(&mut entries[low..high], mid - low, cmp_y);
+            &mut entries[low..high].partition_at_index_by(mid - low, cmp_y);
         }
 
         stack.extend(vec![low, mid, mid, high]);
