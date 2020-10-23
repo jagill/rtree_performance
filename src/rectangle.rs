@@ -48,6 +48,13 @@ impl HasEnvelope for &Rectangle {
     }
 }
 
+impl<IC: Into<Coordinate>> From<IC> for Rectangle {
+    fn from(ic: IC) -> Rectangle {
+        let coord: Coordinate = ic.into();
+        coord.envelope()
+    }
+}
+
 impl Rectangle {
     pub fn new(p1: Coordinate, p2: Coordinate) -> Self {
         Rectangle {
@@ -101,6 +108,7 @@ impl Rectangle {
             && self.y_max >= other.y_max
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn merge<T: HasEnvelope>(&self, item: &T) -> Self {
         let rect = item.envelope();
         Rectangle {
