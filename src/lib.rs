@@ -1,5 +1,4 @@
 #![feature(total_cmp)]
-#![feature(slice_partition_at_index)]
 mod coordinate;
 pub mod from_wkt;
 mod hilbert;

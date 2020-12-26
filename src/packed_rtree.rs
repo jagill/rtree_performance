@@ -187,9 +187,9 @@ fn partition_to_chunks(chunk_size: usize, entries: &mut [Entry], along_x: bool) 
 
         let mid = low + chunk_size * divup(high - low, 2 * chunk_size);
         if along_x {
-            &mut entries[low..high].partition_at_index_by(mid - low, cmp_x);
+            &mut entries[low..high].select_nth_unstable_by(mid - low, cmp_x);
         } else {
-            &mut entries[low..high].partition_at_index_by(mid - low, cmp_y);
+            &mut entries[low..high].select_nth_unstable_by(mid - low, cmp_y);
         }
 
         stack.extend(vec![low, mid, mid, high]);
