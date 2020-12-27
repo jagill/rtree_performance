@@ -1,7 +1,7 @@
 mod utils;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rtree_performance::{PackedRTree, PackedRTreeUnsorted};
+use rtree_performance::{PackedRTree, PackedRTreeUnsorted, PackedRTreeUnsortedTracked};
 
 use utils::{get_positions_list, make_rectangles_list};
 
@@ -28,6 +28,18 @@ pub fn construction_benchmark(c: &mut Criterion) {
                     })
                 },
             );
+            group.bench_with_input(
+                BenchmarkId::new(
+                    format!("packed_rtree_unsorted_tracked_build.{}", poly_idx),
+                    degree,
+                ),
+                degree,
+                |b, &d| {
+                    b.iter(|| {
+                        PackedRTreeUnsortedTracked::new(d, &rectangles);
+                    })
+                },
+            );
             // group.bench_with_input(
             //     BenchmarkId::new(format!("packed_rtree_auto_simd_build.{}", poly_idx), degree),
             //     degree,
@@ -37,24 +49,24 @@ pub fn construction_benchmark(c: &mut Criterion) {
             //         })
             //     },
             // );
-            group.bench_with_input(
-                BenchmarkId::new(format!("packed_rtree_hilbert_build.{}", poly_idx), degree),
-                degree,
-                |b, &d| {
-                    b.iter(|| {
-                        PackedRTree::new_hilbert(d, rectangles);
-                    })
-                },
-            );
-            group.bench_with_input(
-                BenchmarkId::new(format!("packed_rtree_omt_build.{}", poly_idx), degree),
-                degree,
-                |b, &_d| {
-                    b.iter(|| {
-                        PackedRTree::new_omt(rectangles);
-                    })
-                },
-            );
+            // group.bench_with_input(
+            //     BenchmarkId::new(format!("packed_rtree_hilbert_build.{}", poly_idx), degree),
+            //     degree,
+            //     |b, &d| {
+            //         b.iter(|| {
+            //             PackedRTree::new_hilbert(d, rectangles);
+            //         })
+            //     },
+            // );
+            // group.bench_with_input(
+            //     BenchmarkId::new(format!("packed_rtree_omt_build.{}", poly_idx), degree),
+            //     degree,
+            //     |b, &_d| {
+            //         b.iter(|| {
+            //             PackedRTree::new_omt(rectangles);
+            //         })
+            //     },
+            // );
         }
     }
     group.finish();

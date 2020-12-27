@@ -2,7 +2,9 @@ mod utils;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use rtree_performance::{PackedRTree, PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
+use rtree_performance::{
+    PackedRTree, PackedRTreeUnsorted, PackedRTreeUnsortedTracked, RTree, Rectangle,
+};
 use utils::{get_positions_list, get_random_points, make_rectangles_list};
 
 pub fn query_benchmark(c: &mut Criterion) {
@@ -24,9 +26,10 @@ pub fn query_benchmark(c: &mut Criterion) {
         println!("Polygon {} has {} segments.", poly_idx, rectangles.len());
         // for &degree in [8, 16].iter() {
         for &degree in [8].iter() {
-            let mut rtree_native = PackedRTreeUnsorted::new(degree, rectangles.clone());
+            let rtree_native = PackedRTreeUnsorted::new(degree, rectangles.clone());
+            let rtree_tracked = PackedRTreeUnsortedTracked::new(degree, &rectangles);
             // let rtree_auto_simd = PackedRTreeAutoSimd::new(degree, rectangles);
-            let mut rtree_hilbert = PackedRTree::new_hilbert(degree, rectangles);
+            let rtree_hilbert = PackedRTree::new_hilbert(degree, rectangles);
 
             group.bench_function(
                 BenchmarkId::new(format!("packed_rtree_unsorted_query.{}", poly_idx), degree),
@@ -35,6 +38,21 @@ pub fn query_benchmark(c: &mut Criterion) {
                     b.iter(|| {
                         for rect in &query_rects {
                             black_box(rtree_native.query_rect(rect));
+                        }
+                    })
+                },
+            );
+
+            group.bench_function(
+                BenchmarkId::new(
+                    format!("packed_rtree_unsorted_tracked_query.{}", poly_idx),
+                    degree,
+                ),
+                |b| {
+                    // for coords in &positions_list {
+                    b.iter(|| {
+                        for rect in &query_rects {
+                            black_box(rtree_tracked.query_rect(rect));
                         }
                     })
                 },
@@ -52,30 +70,30 @@ pub fn query_benchmark(c: &mut Criterion) {
             //     },
             // );
 
-            group.bench_function(
-                BenchmarkId::new(format!("packed_rtree_hilbert_query.{}", poly_idx), degree),
-                |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for rect in &query_rects {
-                            black_box(rtree_hilbert.query_rect(rect));
-                        }
-                    })
-                },
-            );
+            // group.bench_function(
+            //     BenchmarkId::new(format!("packed_rtree_hilbert_query.{}", poly_idx), degree),
+            //     |b| {
+            //         // for coords in &positions_list {
+            //         b.iter(|| {
+            //             for rect in &query_rects {
+            //                 black_box(rtree_hilbert.query_rect(rect));
+            //             }
+            //         })
+            //     },
+            // );
 
-            let mut rtree_omt = PackedRTree::new_omt(rectangles);
-            group.bench_function(
-                BenchmarkId::new(format!("packed_rtree_omt_query.{}", poly_idx), degree),
-                |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for rect in &query_rects {
-                            black_box(rtree_omt.query_rect(rect));
-                        }
-                    })
-                },
-            );
+            // let mut rtree_omt = PackedRTree::new_omt(rectangles);
+            // group.bench_function(
+            //     BenchmarkId::new(format!("packed_rtree_omt_query.{}", poly_idx), degree),
+            //     |b| {
+            //         // for coords in &positions_list {
+            //         b.iter(|| {
+            //             for rect in &query_rects {
+            //                 black_box(rtree_omt.query_rect(rect));
+            //             }
+            //         })
+            //     },
+            // );
         }
     }
 
