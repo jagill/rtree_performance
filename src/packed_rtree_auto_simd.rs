@@ -1,3 +1,8 @@
+use simdeez::avx2::*;
+use simdeez::scalar::*;
+use simdeez::sse2::*;
+use simdeez::sse41::*;
+
 use crate::utils::{calculate_level_indices, copy_into_slice};
 use crate::{Coordinate, RTree, Rectangle};
 
@@ -73,6 +78,14 @@ impl RTree for PackedRTreeAutoSimd {
             }
         }
 
+        // Stack entries: (level, offset)
+        let mut stack = Vec::new();
+        {
+            if self.envelope().intersects(rect) {
+                stack.push(self.root());
+            }
+        }
+
         while let Some((level, offset)) = stack.pop() {
             if level == 0 {
                 results.push(offset);
@@ -96,6 +109,44 @@ impl RTree for PackedRTreeAutoSimd {
         results
     }
 }
+
+simd_runtime_generate!(
+    fn _query_rtree(rect: &Rectangle, rtree: &PackedRTreeAutoSimd) -> Vec<usize> {
+        println!("F64 width {}", S::VF64_WIDTH);
+        let mut stack = Vec::new();
+        if rtree.envelope().intersects(rect) {
+            stack.push(rtree.root());
+        }
+
+        let mut results = Vec::new();
+        // Rearrange this for fast checking
+        let query_packed = [rect.x_max, rect.y_max, -rect.x_min, -rect.y_min];
+        let query_v = S::loadu_pd(&query_packed[0]);
+
+        while let Some((level, offset)) = stack.pop() {
+            if level == 0 {
+                results.push(offset);
+            } else {
+                let child_level = level - 1;
+                let first_child_offset = rtree.degree * offset;
+                let first_child_index = rtree.find_index(child_level, first_child_offset);
+                let isxns = &mut vec![0.0f64; rtree.degree()];
+                for i in 0..rtree.degree() {
+                    let tree_bounds = S::loadu_pd(&rtree.tree[i + first_child_index].0[0]);
+                    let isxn = S::cmple_pd(tree_bounds, query_v);
+                    isxns[i] = S::horizontal_add_pd(isxn);
+                }
+                for i in 0..rtree.degree() {
+                    if isxns[i] != 0. {
+                        stack.push((child_level, first_child_offset + i));
+                    }
+                }
+            }
+        }
+
+        results
+    }
+);
 
 #[allow(dead_code)]
 impl PackedRTreeAutoSimd {
@@ -158,7 +209,7 @@ impl PackedRTreeAutoSimd {
         self.query_rect(&Rectangle::new(coord, coord))
     }
 
-    fn find_index(&self, level: usize, offset: usize) -> usize {
+    pub(crate) fn find_index(&self, level: usize, offset: usize) -> usize {
         self.level_indices[level] + offset
     }
 
@@ -168,6 +219,18 @@ impl PackedRTreeAutoSimd {
 
     pub(crate) fn root(&self) -> (usize, usize) {
         (self.height() - 1, 0)
+    }
+
+    pub fn query_rect_scalar(&self, rect: &Rectangle) -> Vec<usize> {
+        unsafe { _query_rtree_scalar(rect, self) }
+    }
+
+    pub fn query_rect_sse2(&self, rect: &Rectangle) -> Vec<usize> {
+        unsafe { _query_rtree_sse2(rect, self) }
+    }
+
+    pub fn query_rect_avx2(&self, rect: &Rectangle) -> Vec<usize> {
+        unsafe { _query_rtree_avx2(rect, self) }
     }
 }
 

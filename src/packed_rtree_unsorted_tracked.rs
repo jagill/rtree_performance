@@ -173,7 +173,7 @@ impl PackedRTreeUnsortedTracked {
         }
     }
 
-    pub fn new<IR: HasEnvelope>(mut degree: usize, mut rects: &[IR]) -> Self {
+    pub fn new<IR: HasEnvelope>(mut degree: usize, rects: &[IR]) -> Self {
         if rects.is_empty() {
             return Self::new_empty();
         }

@@ -24,7 +24,7 @@ pub(crate) fn read_test_case(name: &str) -> Vec<Geometry> {
 pub(crate) fn get_positions_list(name: &str) -> Vec<Vec<Coordinate>> {
     let positions_list: Vec<Vec<Coordinate>> = read_test_case(name)
         .into_iter()
-        .take(5)
+        .take(15)
         .filter_map(|geom| match geom {
             Geometry::Polygon(poly) => Some(poly.shell),
             _ => None,

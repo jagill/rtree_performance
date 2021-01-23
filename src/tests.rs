@@ -196,6 +196,11 @@ fn test_intersection_candidates() {
 
     let results = get_rtree_intersections(query_rect, PackedRTree::new_omt(&envelopes));
     assert_eq!(results, brute_results);
+
+    let rtree = PackedRTreeAutoSimd::new(16, &envelopes);
+    let mut results = rtree.query_rect_avx2(&query_rect);
+    results.sort_unstable();
+    assert_eq!(results, brute_results);
 }
 
 // #[test]
