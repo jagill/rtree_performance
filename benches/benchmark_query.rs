@@ -1,6 +1,6 @@
 mod utils;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 
 use rtree_performance::{PackedRTree, PackedRTreeAutoSimd, PackedRTreeUnsorted, RTree, Rectangle};
 use utils::{get_positions_list, get_random_points, make_rectangles_list};
@@ -31,36 +31,36 @@ pub fn query_benchmark(c: &mut Criterion) {
             group.bench_function(
                 BenchmarkId::new(format!("packed_rtree_unsorted_query.{}", poly_idx), degree),
                 |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for rect in &query_rects {
-                            black_box(rtree_native.query_rect(rect));
-                        }
-                    })
+                    let mut query_iter = query_rects.iter().cycle();
+                    b.iter_batched(
+                        move || query_iter.next().unwrap(),
+                        |probe| rtree_native.query_rect(probe),
+                        BatchSize::SmallInput,
+                    )
                 },
             );
 
             // group.bench_function(
             //     BenchmarkId::new(format!("packed_rtree_auto_simd_query.{}", poly_idx), degree),
             //     |b| {
-            //         // for coords in &positions_list {
-            //         b.iter(|| {
-            //             for rect in &query_rects {
-            //                 black_box(rtree_auto_simd.query_rect(rect));
-            //             }
-            //         })
+            // let mut query_iter = query_rects.iter().cycle();
+            // b.iter_batched(
+            //     move || query_iter.next().unwrap(),
+            //     |probe| rtree_omt.query_rect(probe),
+            //     BatchSize::SmallInput,
+            // )
             //     },
             // );
 
             group.bench_function(
                 BenchmarkId::new(format!("packed_rtree_hilbert_query.{}", poly_idx), degree),
                 |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for rect in &query_rects {
-                            black_box(rtree_hilbert.query_rect(rect));
-                        }
-                    })
+                    let mut query_iter = query_rects.iter().cycle();
+                    b.iter_batched(
+                        move || query_iter.next().unwrap(),
+                        |probe| rtree_hilbert.query_rect(probe),
+                        BatchSize::SmallInput,
+                    )
                 },
             );
 
@@ -68,12 +68,12 @@ pub fn query_benchmark(c: &mut Criterion) {
             group.bench_function(
                 BenchmarkId::new(format!("packed_rtree_omt_query.{}", poly_idx), degree),
                 |b| {
-                    // for coords in &positions_list {
-                    b.iter(|| {
-                        for rect in &query_rects {
-                            black_box(rtree_omt.query_rect(rect));
-                        }
-                    })
+                    let mut query_iter = query_rects.iter().cycle();
+                    b.iter_batched(
+                        move || query_iter.next().unwrap(),
+                        |probe| rtree_omt.query_rect(probe),
+                        BatchSize::SmallInput,
+                    )
                 },
             );
         }
