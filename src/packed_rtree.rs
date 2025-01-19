@@ -5,6 +5,11 @@ use crate::utils::divup;
 use crate::{HasEnvelope, PackedRTreeUnsorted, RTree, Rectangle};
 
 type Entry = (usize, Rectangle);
+impl HasEnvelope for Entry {
+    fn envelope(&self) -> Rectangle {
+        self.1.envelope()
+    }
+}
 
 pub struct PackedRTree {
     pub raw_rtree: PackedRTreeUnsorted,
@@ -67,47 +72,6 @@ impl PackedRTree {
         }
     }
 
-    pub fn new_omt_old(items: &[impl HasEnvelope]) -> Self {
-        if items.is_empty() {
-            return Self::new_empty();
-        }
-
-        // TODO: Calculate ncols, nrows dynamically to improve packing
-        let ncols = 4;
-        let nrows = 4;
-        let degree = ncols * nrows;
-
-        let mut entries: Vec<Entry> = items
-            .iter()
-            .map(|item| item.envelope())
-            .enumerate()
-            .collect();
-        let mut offsets = vec![0];
-        offsets.extend(partition_omt(&mut entries, ncols, nrows, 0));
-        offsets.sort_unstable();
-
-        let total_size = divup(items.len(), degree) * degree;
-        let mut shuffled_indices: Vec<usize> = Vec::with_capacity(total_size);
-        let mut rects: Vec<Rectangle> = Vec::with_capacity(total_size);
-        // If we match an empty rect, this will cause an out-of-bounds panic.
-        let empty_index = usize::MAX;
-        let empty_rect = Rectangle::new_empty();
-        for (&last_offset, &next_offset) in offsets.iter().zip(&offsets[1..]) {
-            let these_entries = &entries[last_offset..next_offset];
-            shuffled_indices.extend(these_entries.iter().map(|(i, _e)| i));
-            rects.extend(these_entries.iter().map(|(_i, e)| e));
-            // Pad leaves so that we always have a multiple of degree
-            let excess = degree - (next_offset - last_offset);
-            shuffled_indices.extend(vec![empty_index; excess]);
-            rects.extend(vec![empty_rect; excess]);
-        }
-
-        PackedRTree {
-            shuffled_indices,
-            raw_rtree: PackedRTreeUnsorted::new(degree, rects),
-        }
-    }
-
     pub fn new_omt(items: &[impl HasEnvelope]) -> Self {
         if items.is_empty() {
             return Self::new_empty();
@@ -120,34 +84,35 @@ impl PackedRTree {
             .map(|item| item.envelope())
             .enumerate()
             .collect();
-        let scale = find_scale(entries.len(), degree);
-        partition_omt_2(&mut entries, degree, scale);
+        let chunk_size = partition_omt(&mut entries, degree);
 
-        let shuffled_indices = entries.iter().map(|(i, _e)| *i).collect();
-        let rects: Vec<Rectangle> = entries.iter().map(|(_i, rect)| *rect).collect();
-        PackedRTree {
-            shuffled_indices,
-            raw_rtree: PackedRTreeUnsorted::new(degree, rects),
+        // Hilbert sort our chunks
+        if chunk_size > degree {
+            for idx in (0..degree).step_by(chunk_size) {
+                let top = entries.len().min(idx + chunk_size);
+                let slice = &mut entries[idx..top];
+
+                let total_envelope = Rectangle::of(slice);
+                if total_envelope.is_empty() {
+                    continue;
+                }
+
+                let hilbert_square = Hilbert::new(total_envelope);
+                // Really should partition into chunks, no need to sort smaller than chunk_size
+                slice.sort_unstable_by_key(|(_i, e)| hilbert_square.hilbert(e.center()));
+            }
         }
-    }
 
-    pub fn new_omt_2(items: &[impl HasEnvelope]) -> Self {
-        if items.is_empty() {
-            return Self::new_empty();
-        }
-
-        let degree = 16;
-
-        let mut entries: Vec<Entry> = items
-            .iter()
-            .map(|item| item.envelope())
-            .enumerate()
-            .collect();
-        let scale = find_scale(entries.len(), degree);
-        partition_omt_2(&mut entries, degree, scale);
-
+        // Build our shuffled indices, and Vec of Rectangles for the unsorted rtree
         let shuffled_indices = entries.iter().map(|(i, _e)| *i).collect();
-        let rects: Vec<Rectangle> = entries.iter().map(|(_i, rect)| *rect).collect();
+        let mut rects = Vec::with_capacity(divup(chunk_size, degree) * degree);
+        let empty_rect = Rectangle::new_empty();
+        for i in 0..degree {
+            let slice = &mut entries[i * chunk_size..(i + 1) * chunk_size];
+            rects.extend(slice.iter().map(|(_i, e)| e));
+            // We need to pad each l2
+            rects.append(&mut vec![empty_rect; degree - slice.len()]);
+        }
         PackedRTree {
             shuffled_indices,
             raw_rtree: PackedRTreeUnsorted::new(degree, rects),
@@ -193,131 +158,59 @@ fn total_cmp(x1: f64, x2: f64) -> Ordering {
     }
 }
 
-fn find_scale(num_entries: usize, degree: usize) -> usize {
-    let mut scale = 1;
-    let mut chunk_size = degree;
-
-    while divup(num_entries, chunk_size) > 1 {
-        scale += 1;
-        chunk_size *= degree;
+/// Partition OMT once, returning the chunk size
+fn partition_omt(entries: &mut [Entry], degree: usize) -> usize {
+    let num_entries = entries.len();
+    if num_entries <= degree {
+        return num_entries;
     }
 
-    scale
+    let chunk_size = degree.max(divup(num_entries, degree));
+    let num_chunks = divup(num_entries, chunk_size);
+
+    let num_stripes = (degree as f32).sqrt() as usize;
+    if num_stripes * num_stripes != degree {
+        panic!("Degree must be a perfect squre.");
+    }
+
+    // Partition into 4 vertical stripes
+    let stripe_size = chunk_size * num_stripes;
+    partition_in_stripes(entries, stripe_size, true);
+
+    // Partition each slice into 4 horizontal chunks
+    for i in 0..num_stripes {
+        let stripe_top = if i == num_stripes - 1 {
+            entries.len()
+        } else {
+            (i + 1) * stripe_size
+        };
+        let stripe = &mut entries[i * stripe_size..stripe_top];
+        partition_in_stripes(stripe, chunk_size, false);
+    }
+
+    chunk_size
 }
 
-fn find_cols_rows_remainder(num_chunks: usize) -> (usize, usize, usize) {
-    let num_rows = (num_chunks as f64).sqrt().floor() as usize;
-    let num_cols = if num_rows * (num_rows + 1) <= num_chunks {
-        num_rows + 1
-    } else {
-        num_rows
-    };
-    let remainder = num_chunks % (num_rows * num_cols);
-    (num_cols, num_rows, remainder)
-}
-
-fn partition_omt_2(entries: &mut [Entry], degree: usize, scale: usize) {
-    if scale == 0 {
+// Partition entries into 4 groups of size using cmp
+fn partition_in_stripes(entries: &mut [Entry], size: usize, by_x: bool) {
+    if entries.len() <= size {
         return;
     }
 
-    let num_entries = entries.len();
-    let chunk_size = degree.checked_pow(scale as u32).unwrap();
-    match divup(num_entries, chunk_size) {
-        0 => return,
-        1 => {
-            return partition_omt_2(entries, degree, scale - 1);
-        }
-        i if i > degree => panic!(
-            "partition_omt called with insufficient scale: {} num_entries {}, degree {}",
-            scale, num_entries, degree
-        ),
-        _ => (),
+    let compare = if by_x { cmp_x } else { cmp_y };
+    if entries.len() <= 2 * size {
+        entries.select_nth_unstable_by(size, compare);
+        return;
     }
-
-    let boundaries = find_boundaries(num_entries, chunk_size);
-    sort_by_boundaries(entries, &boundaries, true);
-    for bounds in boundaries.windows(2) {
-        let (low, hi) = (bounds[0], bounds[1]);
-        if hi - low > chunk_size {
-            let mut row_boundaries: Vec<usize> = (low..hi).step_by(chunk_size).collect();
-            row_boundaries.push(hi);
-            sort_by_boundaries(&mut entries[low..hi], &row_boundaries, false);
-        }
+    entries.select_nth_unstable_by(2 * size, compare);
+    entries[..2 * size].select_nth_unstable_by(size, compare);
+    if entries.len() > 3 * size {
+        entries[2 * size..].select_nth_unstable_by(size, compare);
     }
-    if scale > 1 {
-        for low in (0..num_entries).step_by(chunk_size) {
-            partition_omt_2(&mut entries[low..(low + chunk_size)], degree, scale - 1);
-        }
-    }
-}
-
-fn find_boundaries(num_entries: usize, chunk_size: usize) -> Vec<usize> {
-    let (n_cols, n_rows, remainder) = find_cols_rows_remainder(divup(num_entries, chunk_size));
-
-    let mut current_pivot = 0;
-    let mut pivots = vec![current_pivot];
-    for x_cut in 0..n_cols {
-        current_pivot += n_rows + if x_cut < remainder { 1 } else { 0 };
-        pivots.push(num_entries.min(current_pivot * chunk_size));
-    }
-
-    pivots
-}
-
-fn sort_by_boundaries(entries: &mut [Entry], boundaries: &[usize], along_x: bool) {
-    let mut stack = vec![0, boundaries.len() - 1];
-    let entries_start = boundaries[0];
-
-    while !stack.is_empty() {
-        let high = stack.pop().unwrap();
-        let low = stack.pop().unwrap();
-        if (high - low) <= 1 {
-            continue;
-        }
-        let range_min = boundaries[low] - entries_start;
-        let range_max = boundaries[high] - entries_start;
-
-        let mid = (low + high) / 2;
-        let pivot = boundaries[mid] - range_min;
-        if along_x {
-            &mut entries[range_min..range_max].select_nth_unstable_by(pivot, cmp_x);
-        } else {
-            &mut entries[range_min..range_max].select_nth_unstable_by(pivot, cmp_y);
-        }
-
-        stack.extend(&[low, mid, mid, high]);
-    }
-}
-
-fn partition_omt(entries: &mut [Entry], ncols: usize, nrows: usize, start: usize) -> Vec<usize> {
-    let size = entries.len();
-    if size < ncols * nrows {
-        return vec![start + size];
-    }
-
-    let mut results = Vec::new();
-    let column_size = divup(size, ncols);
-    partition_to_chunks(column_size, entries, true);
-    for ix in (0..size).step_by(column_size) {
-        let actual_column_size = size.min(ix + column_size) - ix;
-        let row_size = divup(actual_column_size, nrows);
-        partition_to_chunks(row_size, &mut entries[ix..(ix + actual_column_size)], false);
-        for iy in (ix..(ix + actual_column_size)).step_by(row_size) {
-            let actual_row_size = (ix + actual_column_size).min(iy + row_size) - iy;
-            results.extend(partition_omt(
-                &mut entries[iy..(iy + actual_row_size)],
-                ncols,
-                nrows,
-                iy,
-            ))
-        }
-    }
-
-    results
 }
 
 // Ported from github.com/mourner/rbush
+#[allow(dead_code)]
 fn partition_to_chunks(chunk_size: usize, entries: &mut [Entry], along_x: bool) {
     let mut stack = vec![0, entries.len()];
 
@@ -344,101 +237,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_find_scale() {
-        assert_eq!(1, find_scale(0, 4));
-        assert_eq!(1, find_scale(1, 4));
-        assert_eq!(1, find_scale(3, 4));
-        assert_eq!(1, find_scale(4, 4));
-        assert_eq!(2, find_scale(5, 4));
-        assert_eq!(2, find_scale(8, 4));
-        assert_eq!(2, find_scale(16, 4));
-        assert_eq!(3, find_scale(17, 4));
-        assert_eq!(4, find_scale(9, 2));
-    }
-
-    #[test]
-    fn test_find_cols_rows_remainder() {
-        assert_eq!((2, 1, 0), find_cols_rows_remainder(2));
-        assert_eq!((2, 1, 1), find_cols_rows_remainder(3));
-        assert_eq!((2, 2, 0), find_cols_rows_remainder(4));
-        assert_eq!((2, 2, 1), find_cols_rows_remainder(5));
-        assert_eq!((3, 2, 0), find_cols_rows_remainder(6));
-        assert_eq!((3, 2, 1), find_cols_rows_remainder(7));
-        assert_eq!((3, 2, 2), find_cols_rows_remainder(8));
-        assert_eq!((3, 3, 0), find_cols_rows_remainder(9));
-        assert_eq!((3, 3, 1), find_cols_rows_remainder(10));
-        assert_eq!((3, 3, 2), find_cols_rows_remainder(11));
-        assert_eq!((4, 3, 0), find_cols_rows_remainder(12));
-        assert_eq!((4, 3, 1), find_cols_rows_remainder(13));
-        assert_eq!((4, 3, 2), find_cols_rows_remainder(14));
-        assert_eq!((4, 3, 3), find_cols_rows_remainder(15));
-        assert_eq!((4, 4, 0), find_cols_rows_remainder(16));
-    }
-
-    #[test]
-    fn test_find_pivots() {
-        assert_eq!(find_boundaries(2, 1), &[0, 1, 2]);
-        assert_eq!(find_boundaries(3, 1), &[0, 2, 3]);
-        assert_eq!(find_boundaries(4, 1), &[0, 2, 4]);
-        assert_eq!(find_boundaries(5, 1), &[0, 3, 5]);
-        assert_eq!(find_boundaries(6, 1), &[0, 2, 4, 6]);
-        assert_eq!(find_boundaries(7, 1), &[0, 3, 5, 7]);
-        assert_eq!(find_boundaries(8, 1), &[0, 3, 6, 8]);
-        assert_eq!(find_boundaries(9, 1), &[0, 3, 6, 9]);
-        assert_eq!(find_boundaries(10, 1), &[0, 4, 7, 10]);
-        assert_eq!(find_boundaries(11, 1), &[0, 4, 8, 11]);
-        assert_eq!(find_boundaries(12, 1), &[0, 3, 6, 9, 12]);
-        assert_eq!(find_boundaries(13, 1), &[0, 4, 7, 10, 13]);
-        assert_eq!(find_boundaries(14, 1), &[0, 4, 8, 11, 14]);
-        assert_eq!(find_boundaries(15, 1), &[0, 4, 8, 12, 15]);
-        assert_eq!(find_boundaries(16, 1), &[0, 4, 8, 12, 16]);
-    }
-
-    #[test]
-    fn test_sort_by_boundaries() {
-        let entries: Vec<Entry> = vec![
-            (0, Rectangle::from((10., 10.))),
-            (1, Rectangle::from((9., 9.))),
-            (2, Rectangle::from((8., 8.))),
-            (3, Rectangle::from((7., 7.))),
-            (4, Rectangle::from((6., 6.))),
-            (5, Rectangle::from((5., 5.))),
-            (6, Rectangle::from((4., 4.))),
-            (7, Rectangle::from((3., 3.))),
-            (8, Rectangle::from((2., 2.))),
-            (9, Rectangle::from((1., 1.))),
-        ];
-        let mut reordered = entries.clone();
-        let boundaries = [0, 3, 6, 10];
-        sort_by_boundaries(&mut reordered, &boundaries, true);
-        let mut reordered_indices: Vec<usize> = reordered.into_iter().map(|(i, _e)| i).collect();
-        for bounds in boundaries.windows(2) {
-            let (low, hi) = (bounds[0], bounds[1]);
-            reordered_indices[low..hi].sort_unstable();
-        }
-        assert_eq!(reordered_indices, vec![7, 8, 9, 4, 5, 6, 0, 1, 2, 3]);
-    }
-
-    #[test]
     fn test_partition_omt() {
-        let entries: Vec<Entry> = vec![
-            (0, Rectangle::from((10., 0.))),
-            (1, Rectangle::from((9., 1.))),
-            (2, Rectangle::from((8., 2.))),
-            (3, Rectangle::from((7., 3.))),
-            (4, Rectangle::from((6., 4.))),
-            (5, Rectangle::from((5., 5.))),
-            (6, Rectangle::from((4., 6.))),
-            (7, Rectangle::from((3., 7.))),
-            (8, Rectangle::from((2., 8.))),
-            (9, Rectangle::from((1., 9.))),
-        ];
-        let mut reordered = entries.clone();
-        let degree = 4;
-        let scale = find_scale(entries.len(), degree);
-        partition_omt_2(&mut reordered, degree, scale);
-        let reordered_indices: Vec<usize> = reordered.into_iter().map(|(i, _e)| i).collect();
-        // XXX: This is not really a good test.
-        assert_eq!(reordered_indices, vec![9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+        let mut rects = make_grid_rects(5);
+        let chunk_size = partition_omt(&mut rects, 16);
+        assert_eq!(chunk_size, 2);
+        println!("{:#?}", rects);
+        // assert_eq!(rects, Vec::new());
+    }
+
+    fn make_grid_rects(sqrt_num: usize) -> Vec<Entry> {
+        let mut rects = Vec::with_capacity(sqrt_num * sqrt_num);
+        let mut a = 0;
+        for i in 0..sqrt_num {
+            for j in 0..sqrt_num {
+                rects.push((a, Rectangle::from((i as f64, j as f64))));
+                a += 1;
+            }
+        }
+
+        rects
     }
 }

@@ -198,6 +198,23 @@ fn test_intersection_candidates() {
     assert_eq!(results, brute_results);
 }
 
+#[test]
+fn test_construction_errors() {
+    let rect = Rectangle::from((0., 0.));
+    let max_size = 16 * 16 + 1;
+    let rects = vec![rect; max_size];
+    for size in 0..max_size {
+        let these_rects = &rects[..size];
+        // let hilbert_rtree = PackedRTree::new_hilbert(16, &these_rects);
+        // hilbert_rtree.query_rect(&rect);
+        println!("{}", size);
+        let omt_rtree = PackedRTree::new_omt(&these_rects);
+        omt_rtree.query_rect(&rect);
+        // let unsorted_rtree = PackedRTreeUnsorted::new(16, these_rects.clone());
+        // unsorted_rtree.query_rect(&rect);
+    }
+}
+
 // #[test]
 // fn test_self_intersection_unsorted() {
 //     let envelopes: Vec<Rectangle> = get_envelopes();

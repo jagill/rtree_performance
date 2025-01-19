@@ -1,4 +1,3 @@
-#![feature(total_cmp)]
 mod coordinate;
 pub mod from_wkt;
 mod hilbert;
